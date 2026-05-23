@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import DropdownMenu from "./DropdownMenu";
 import "./TitleBar.css";
@@ -45,9 +45,66 @@ const HELP_MENU = [
   { label: "快捷键说明", action: "shortcuts" },
 ];
 
+function MinimizeIcon() {
+  return (
+    <svg className="win-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M3.5 11.5h9" />
+    </svg>
+  );
+}
+
+function MaximizeIcon() {
+  return (
+    <svg className="win-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <rect x="4.5" y="4.5" width="7" height="7" />
+    </svg>
+  );
+}
+
+function RestoreIcon() {
+  return (
+    <svg className="win-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M6.5 4.5h5v5" />
+      <rect x="4.5" y="6.5" width="5" height="5" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg className="win-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
+    </svg>
+  );
+}
+
 export default function TitleBar({ fileName, isDirty, onMenuAction, onCloseWindow }) {
   const [openMenu, setOpenMenu] = useState(null);
+  const [isMaximized, setIsMaximized] = useState(false);
   const title = `${fileName}${isDirty ? " *" : ""} - MDPad`;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const updateMaximizedState = async () => {
+      try {
+        const maximized = await appWindow.isMaximized();
+        if (!cancelled) {
+          setIsMaximized(maximized);
+        }
+      } catch {
+        return;
+      }
+    };
+
+    void updateMaximizedState();
+    const unlistenPromise = appWindow.onResized(updateMaximizedState);
+
+    return () => {
+      cancelled = true;
+      unlistenPromise.then((fn) => fn());
+    };
+  }, []);
 
   const handleMouseDown = async (e) => {
     if (e.button !== 0 || e.target.closest("button") || e.target.closest(".dropdown")) return;
@@ -67,6 +124,17 @@ export default function TitleBar({ fileName, isDirty, onMenuAction, onCloseWindo
     [openMenu]
   );
 
+  const handleToggleMaximize = useCallback(async () => {
+    try {
+      await appWindow.toggleMaximize();
+      setIsMaximized(await appWindow.isMaximized());
+    } catch {
+      return;
+    }
+  }, []);
+
+  const stopWindowDrag = (e) => e.stopPropagation();
+
   return (
     <div className="titlebar" onMouseDown={handleMouseDown}>
       <div className="app-title">{title}</div>
@@ -77,9 +145,39 @@ export default function TitleBar({ fileName, isDirty, onMenuAction, onCloseWindo
         <DropdownMenu label="帮助" items={HELP_MENU} onAction={onMenuAction} {...createMenuHandlers("help")} />
       </div>
       <div className="window-actions">
-        <button type="button" className="win-btn" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={() => appWindow.minimize()}>─</button>
-        <button type="button" className="win-btn" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={() => appWindow.toggleMaximize()}>□</button>
-        <button type="button" className="win-btn close" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={onCloseWindow}>×</button>
+        <button
+          type="button"
+          className="win-btn"
+          aria-label="最小化"
+          title="最小化"
+          onMouseDown={stopWindowDrag}
+          onMouseUp={stopWindowDrag}
+          onClick={() => appWindow.minimize()}
+        >
+          <MinimizeIcon />
+        </button>
+        <button
+          type="button"
+          className="win-btn"
+          aria-label={isMaximized ? "还原" : "最大化"}
+          title={isMaximized ? "还原" : "最大化"}
+          onMouseDown={stopWindowDrag}
+          onMouseUp={stopWindowDrag}
+          onClick={handleToggleMaximize}
+        >
+          {isMaximized ? <RestoreIcon /> : <MaximizeIcon />}
+        </button>
+        <button
+          type="button"
+          className="win-btn close"
+          aria-label="关闭"
+          title="关闭"
+          onMouseDown={stopWindowDrag}
+          onMouseUp={stopWindowDrag}
+          onClick={onCloseWindow}
+        >
+          <CloseIcon />
+        </button>
       </div>
     </div>
   );

@@ -41,6 +41,17 @@
   justify-content: center;
 }
 
+.win-icon {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 1.35;
+  fill: none;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  pointer-events: none;
+}
+
 .win-btn:hover {
   background: var(--button-hover);
 }
