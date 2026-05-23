@@ -59,13 +59,8 @@ export default function TitleBar({ fileName, isDirty, onMenuAction }) {
   const createMenuHandlers = useCallback(
     (menuKey) => ({
       isOpen: openMenu === menuKey,
-      onToggle: () => setOpenMenu((current) => (current === menuKey ? null : menuKey)),
-      onOpen: () => {
-        setOpenMenu((current) => (current === null ? current : menuKey));
-      },
-      onClose: () => {
-        setOpenMenu((current) => (current === menuKey ? null : current));
-      },
+      onOpen: () => setOpenMenu(menuKey),
+      onClose: () => setOpenMenu((current) => (current === menuKey ? null : current)),
     }),
     [openMenu]
   );

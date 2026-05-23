@@ -6,7 +6,6 @@ export default function DropdownMenu({
   items,
   onAction,
   isOpen,
-  onToggle,
   onOpen,
   onClose,
 }) {
@@ -24,15 +23,15 @@ export default function DropdownMenu({
   }, [isOpen, onClose]);
 
   return (
-    <div className="dropdown" ref={ref}>
+    <div
+      className="dropdown"
+      ref={ref}
+      onMouseEnter={onOpen}
+      onMouseLeave={onClose}
+    >
       <span
         className="dropdown-trigger"
         onMouseDown={(e) => e.stopPropagation()}
-        onClick={() => onToggle()}
-        onMouseEnter={() => {
-          if (isOpen) return;
-          onOpen();
-        }}
       >
         {label}
       </span>
