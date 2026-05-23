@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { exists, readDir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
-import { isSupportedFile, getFileName, getParentDir } from "../utils/fileTypes";
+import { invoke } from "@tauri-apps/api/core";
+import { getFileName, getParentDir } from "../utils/fileTypes";
 import { addRecentFile } from "../utils/recentFiles";
 
 function createSessionId() {
@@ -16,6 +16,15 @@ function createDraftSession(index) {
     fileName: `未命名-${index}.md`,
     content: "",
     isDirty: false,
+  };
+}
+
+function createInitialWorkspace() {
+  const initialDraft = createDraftSession(1);
+  return {
+    sessions: [initialDraft],
+    activeSessionId: initialDraft.id,
+    nextDraftIndex: 2,
   };
 }
 
@@ -48,17 +57,10 @@ function mergeSavedSession(sessions, updatedSession) {
     );
 }
 
-export function useFileSystem({ updateSettings, settings }) {
+export function useFileSystem({ updateSettings }) {
   const [dirFiles, setDirFiles] = useState([]);
   const [refreshToken, setRefreshToken] = useState(0);
-  const [workspace, setWorkspace] = useState(() => {
-    const initialDraft = createDraftSession(1);
-    return {
-      sessions: [initialDraft],
-      activeSessionId: initialDraft.id,
-      nextDraftIndex: 2,
-    };
-  });
+  const [workspace, setWorkspace] = useState(createInitialWorkspace);
 
   const workspaceRef = useRef(workspace);
 
@@ -81,18 +83,7 @@ export function useFileSystem({ updateSettings, settings }) {
 
       try {
         const dir = getParentDir(activeSession.filePath);
-        const entries = await readDir(dir);
-        const files = entries
-          .filter((entry) => !entry.isDirectory && isSupportedFile(entry.name))
-          .map((entry) => ({ name: entry.name, path: dir + "/" + entry.name }))
-          .sort((a, b) => {
-            const extA = a.name.split(".").pop().toLowerCase();
-            const extB = b.name.split(".").pop().toLowerCase();
-            const order = { md: 0, markdown: 1, txt: 2 };
-            const diff = (order[extA] ?? 3) - (order[extB] ?? 3);
-            if (diff !== 0) return diff;
-            return a.name.localeCompare(b.name);
-          });
+        const files = await invoke("list_supported_documents", { path: dir });
 
         if (!cancelled) {
           setDirFiles(files);
@@ -117,7 +108,9 @@ export function useFileSystem({ updateSettings, settings }) {
       sessions.map(async (session) => {
         if (!session.filePath) return session;
 
-        const stillExists = await exists(session.filePath);
+        const stillExists = await invoke("document_exists", {
+          path: session.filePath,
+        });
         if (session.missingOnDisk === !stillExists) {
           return session;
         }
@@ -136,24 +129,30 @@ export function useFileSystem({ updateSettings, settings }) {
     setRefreshToken((value) => value + 1);
   }, []);
 
+  const addToRecentFiles = useCallback(
+    (path) =>
+      updateSettings((prev) => ({
+        recentFiles: addRecentFile(prev.recentFiles, path),
+      })),
+    [updateSettings]
+  );
+
   const loadFileContent = useCallback(
     async (path) => {
       const existingSession = workspaceRef.current.sessions.find(
         (session) => session.filePath === path
       );
 
-      const newRecent = addRecentFile(settings.recentFiles, path);
-      updateSettings({ recentFiles: newRecent });
-
       if (existingSession) {
         setWorkspace((prev) => ({
           ...prev,
           activeSessionId: existingSession.id,
         }));
+        await addToRecentFiles(path);
         return;
       }
 
-      const text = await readTextFile(path);
+      const text = await invoke("read_text_document", { path });
       const fileSession = createFileSession(path, text);
 
       setWorkspace((prev) => ({
@@ -161,8 +160,9 @@ export function useFileSystem({ updateSettings, settings }) {
         sessions: [...prev.sessions, fileSession],
         activeSessionId: fileSession.id,
       }));
+      await addToRecentFiles(path);
     },
-    [settings.recentFiles, updateSettings]
+    [addToRecentFiles]
   );
 
   const openFile = useCallback(async () => {
@@ -188,7 +188,10 @@ export function useFileSystem({ updateSettings, settings }) {
       );
       if (!currentSession) return false;
 
-      await writeTextFile(targetPath, currentSession.content);
+      await invoke("write_text_document", {
+        path: targetPath,
+        content: currentSession.content,
+      });
 
       const updatedSession = {
         ...currentSession,
@@ -205,11 +208,10 @@ export function useFileSystem({ updateSettings, settings }) {
         activeSessionId: updatedSession.id,
       }));
 
-      const newRecent = addRecentFile(settings.recentFiles, targetPath);
-      updateSettings({ recentFiles: newRecent });
+      await addToRecentFiles(targetPath);
       return true;
     },
-    [settings.recentFiles, updateSettings]
+    [addToRecentFiles]
   );
 
   const saveFile = useCallback(async () => {
@@ -286,6 +288,36 @@ export function useFileSystem({ updateSettings, settings }) {
     });
   }, []);
 
+  const closeSession = useCallback((sessionId) => {
+    setWorkspace((prev) => {
+      const closingIndex = prev.sessions.findIndex(
+        (session) => session.id === sessionId
+      );
+
+      if (closingIndex === -1) {
+        return prev;
+      }
+
+      if (prev.sessions.length === 1) {
+        return createInitialWorkspace();
+      }
+
+      const remainingSessions = prev.sessions.filter(
+        (session) => session.id !== sessionId
+      );
+      const activeSessionId =
+        prev.activeSessionId === sessionId
+          ? remainingSessions[Math.min(closingIndex, remainingSessions.length - 1)].id
+          : prev.activeSessionId;
+
+      return {
+        ...prev,
+        sessions: remainingSessions,
+        activeSessionId,
+      };
+    });
+  }, []);
+
   const updateContent = useCallback((newContent) => {
     setWorkspace((prev) => {
       const currentSession = prev.sessions.find(
@@ -331,6 +363,7 @@ export function useFileSystem({ updateSettings, settings }) {
     loadFileContent,
     updateContent,
     switchSession,
+    closeSession,
     refreshFileState,
   };
 }

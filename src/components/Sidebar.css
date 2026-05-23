@@ -39,6 +39,12 @@
   cursor: pointer;
 }
 
+.file-item:hover .session-close,
+.file-item.active .session-close,
+.session-close:focus-visible {
+  opacity: 1;
+}
+
 .file-item:hover {
   background: var(--button-hover);
 }
@@ -75,6 +81,36 @@
   flex-shrink: 0;
   color: var(--muted);
   font-size: 11px;
+}
+
+.session-close {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.session-close:hover {
+  background: var(--button-hover);
+  color: var(--text);
+}
+
+.session-close svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  fill: none;
+  stroke-linecap: square;
+  pointer-events: none;
 }
 
 .hint {

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { readTextFile, writeTextFile, exists, mkdir } from "@tauri-apps/plugin-fs";
-import { appDataDir } from "@tauri-apps/api/path";
+import { appDataDir, join } from "@tauri-apps/api/path";
 
 const DEFAULT_SETTINGS = {
   theme: "graphite",
@@ -14,11 +14,13 @@ const DEFAULT_SETTINGS = {
 
 async function getSettingsPath() {
   const dir = await appDataDir();
-  return dir + "settings.json";
+  return join(dir, "settings.json");
 }
 
 export function useSettings() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const settingsRef = useRef(DEFAULT_SETTINGS);
+  const saveQueueRef = useRef(Promise.resolve(true));
 
   useEffect(() => {
     (async () => {
@@ -28,7 +30,9 @@ export function useSettings() {
         if (existsFlag) {
           const text = await readTextFile(path);
           const parsed = JSON.parse(text);
-          setSettings((prev) => ({ ...prev, ...parsed }));
+          const next = { ...DEFAULT_SETTINGS, ...parsed };
+          settingsRef.current = next;
+          setSettings(next);
         }
       } catch {
         return;
@@ -36,30 +40,30 @@ export function useSettings() {
     })();
   }, []);
 
-  const saveSettings = useCallback(
-    async (newSettings) => {
+  const saveSettings = useCallback((newSettings) => {
+    saveQueueRef.current = saveQueueRef.current.then(async () => {
       try {
         const dir = await appDataDir();
         await mkdir(dir, { recursive: true });
-        const path = dir + "settings.json";
-        await writeTextFile(
-          path,
-          JSON.stringify(newSettings || settings, null, 2)
-        );
+        const path = await getSettingsPath();
+        await writeTextFile(path, JSON.stringify(newSettings, null, 2));
+        return true;
       } catch {
         return false;
       }
-    },
-    [settings]
-  );
+    });
+
+    return saveQueueRef.current;
+  }, []);
 
   const updateSettings = useCallback(
     (partial) => {
-      setSettings((prev) => {
-        const next = { ...prev, ...partial };
-        saveSettings(next);
-        return next;
-      });
+      const patch =
+        typeof partial === "function" ? partial(settingsRef.current) : partial;
+      const next = { ...settingsRef.current, ...patch };
+      settingsRef.current = next;
+      setSettings(next);
+      return saveSettings(next);
     },
     [saveSettings]
   );

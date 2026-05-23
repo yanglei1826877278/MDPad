@@ -11,6 +11,7 @@ export default function Sidebar({
   currentFilePath,
   onFileClick,
   onSessionClick,
+  onSessionClose,
   visible,
 }) {
   const [contextMenu, setContextMenu] = useState(null);
@@ -108,6 +109,13 @@ export default function Sidebar({
     }
   };
 
+  const handleSessionClose = (event, session) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu(null);
+    void onSessionClose(session);
+  };
+
   return (
     <aside className="sidebar">
       <div className="side-section">
@@ -148,6 +156,18 @@ export default function Sidebar({
               {session.kind === "draft" && (
                 <span className="file-badge">临时</span>
               )}
+              <button
+                type="button"
+                className="session-close"
+                aria-label={`关闭 ${session.fileName}`}
+                title="关闭会话"
+                onClick={(event) => handleSessionClose(event, session)}
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+                  <path d="M3.25 3.25l5.5 5.5M8.75 3.25l-5.5 5.5" />
+                </svg>
+              </button>
             </div>
           ))}
         </div>

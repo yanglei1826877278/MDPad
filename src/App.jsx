@@ -33,7 +33,6 @@ export default function App() {
 
   const fs = useFileSystem({
     updateSettings,
-    settings,
   });
 
   useEffect(() => {
@@ -149,6 +148,27 @@ export default function App() {
       } catch {
         alert("文件读取失败，请检查文件权限。");
       }
+    },
+    [fs]
+  );
+
+  const handleCloseSession = useCallback(
+    async (session) => {
+      if (session.isDirty) {
+        const confirmed = await confirm(
+          `${session.fileName} 尚未保存，关闭后内容将丢失。`,
+          {
+            title: "关闭会话",
+            kind: "warning",
+          }
+        );
+
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      fs.closeSession(session.id);
     },
     [fs]
   );
@@ -465,6 +485,7 @@ export default function App() {
           currentFilePath={fs.filePath}
           onFileClick={handleFileClick}
           onSessionClick={fs.switchSession}
+          onSessionClose={handleCloseSession}
           visible={settings.sidebarVisible}
         />
         <section className="workspace">
