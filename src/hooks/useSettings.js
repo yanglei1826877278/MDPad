@@ -31,7 +31,9 @@ export function useSettings() {
           const parsed = JSON.parse(text);
           setSettings((prev) => ({ ...prev, ...parsed }));
         }
-      } catch (_) {}
+      } catch {
+        return;
+      }
     })();
   }, []);
 
@@ -45,7 +47,9 @@ export function useSettings() {
           JSON.stringify(newSettings || settings, null, 2)
         );
         await writeFile(path, data);
-      } catch (_) {}
+      } catch {
+        return false;
+      }
     },
     [settings]
   );

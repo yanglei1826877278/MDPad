@@ -53,7 +53,9 @@ export default function TitleBar({ fileName, isDirty, onMenuAction }) {
     if (e.button !== 0 || e.target.closest("button") || e.target.closest(".dropdown")) return;
     try {
       await appWindow.startDragging();
-    } catch (_) {}
+    } catch {
+      return;
+    }
   };
 
   const createMenuHandlers = useCallback(

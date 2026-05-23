@@ -1,6 +1,7 @@
 .find-replace-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 6px 12px;
   background: var(--panel);
@@ -57,6 +58,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 3px;
+}
+
+.fr-status {
+  color: var(--muted);
+  font-size: 12px;
+  min-height: 18px;
 }
 
 .fr-close:hover {

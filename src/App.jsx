@@ -12,14 +12,22 @@ import { useFileSystem } from "./hooks/useFileSystem";
 import { isSupportedFile } from "./utils/fileTypes";
 import "./App.css";
 
+function detectLineEnding(text) {
+  if (text.includes("\r\n")) return "CRLF";
+  if (text.includes("\n")) return "LF";
+  if (text.includes("\r")) return "CR";
+  return "LF";
+}
+
 export default function App() {
   const { settings, updateSettings } = useSettings();
+  const editorRef = useRef(null);
   const [previewContent, setPreviewContent] = useState("");
   const [cursorLine, setCursorLine] = useState(1);
   const [cursorColumn, setCursorColumn] = useState(1);
-  const [lineEnding, setLineEnding] = useState("CRLF");
   const [showFind, setShowFind] = useState(false);
   const [showReplace, setShowReplace] = useState(false);
+  const [findStatus, setFindStatus] = useState("");
 
   const fs = useFileSystem({
     onContentChange: setPreviewContent,
@@ -31,11 +39,30 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", settings.theme);
   }, [settings.theme]);
 
+  const lineEnding = detectLineEnding(fs.content);
+
+  const openFindBar = useCallback((replaceMode = false) => {
+    setShowFind(true);
+    setShowReplace(replaceMode);
+    setFindStatus("");
+  }, []);
+
+  const closeFindBar = useCallback(() => {
+    setShowFind(false);
+    setShowReplace(false);
+    setFindStatus("");
+  }, []);
+
+  const handleSelectionChange = useCallback(({ line, column }) => {
+    setCursorLine(line);
+    setCursorColumn(column);
+  }, []);
+
   const handleFileClick = useCallback(
     async (path) => {
       try {
         await fs.loadFileContent(path);
-      } catch (_) {
+      } catch {
         alert("文件读取失败，请检查文件权限。");
       }
     },
@@ -62,28 +89,63 @@ export default function App() {
 
   // Find & Replace
   const handleFind = useCallback((text) => {
-    if (!text) return;
-    const idx = fs.content.indexOf(text, 0);
-    if (idx !== -1) {
-      // Scroll to and select the found text via content update trick
-      // For simple implementation, we just highlight in preview
+    const result = editorRef.current?.find(text) ?? {
+      ok: false,
+      reason: "unavailable",
+      count: 0,
+    };
+
+    if (!result.ok) {
+      setFindStatus(
+        result.reason === "empty" ? "请输入要查找的内容。" : "没有找到匹配内容。"
+      );
+      return;
     }
-  }, [fs.content]);
+
+    setFindStatus(
+      result.count === 1
+        ? "已定位到 1 处匹配。"
+        : `已定位到匹配项，共 ${result.count} 处。`
+    );
+  }, []);
 
   const handleReplace = useCallback((findText, replaceText) => {
-    if (!findText) return;
-    const idx = fs.content.indexOf(findText);
-    if (idx !== -1) {
-      const newContent = fs.content.substring(0, idx) + replaceText + fs.content.substring(idx + findText.length);
-      fs.updateContent(newContent);
+    const result = editorRef.current?.replace(findText, replaceText) ?? {
+      ok: false,
+      reason: "unavailable",
+      count: 0,
+    };
+
+    if (!result.ok) {
+      setFindStatus(
+        result.reason === "empty" ? "请输入要替换的查找内容。" : "没有找到可替换的内容。"
+      );
+      return;
     }
-  }, [fs]);
+
+    setFindStatus(
+      result.count === 1
+        ? "已替换 1 处匹配。"
+        : `已替换当前匹配，文档中共有 ${result.count} 处原始匹配。`
+    );
+  }, []);
 
   const handleReplaceAll = useCallback((findText, replaceText) => {
-    if (!findText) return;
-    const newContent = fs.content.split(findText).join(replaceText);
-    fs.updateContent(newContent);
-  }, [fs]);
+    const result = editorRef.current?.replaceAll(findText, replaceText) ?? {
+      ok: false,
+      reason: "unavailable",
+      count: 0,
+    };
+
+    if (!result.ok) {
+      setFindStatus(
+        result.reason === "empty" ? "请输入要替换的查找内容。" : "没有找到可替换的内容。"
+      );
+      return;
+    }
+
+    setFindStatus(`已全部替换，共处理 ${result.count} 处匹配。`);
+  }, []);
 
   // Font zoom
   const zoomIn = useCallback(() => {
@@ -101,28 +163,80 @@ export default function App() {
   }, [updateSettings]);
 
   // Menu actions
-  const handleMenuAction = useCallback((action) => {
+  const handleMenuAction = useCallback(async (action) => {
     switch (action) {
-      case "newFile": fs.newFile(); break;
-      case "openFile": fs.openFile(); break;
-      case "saveFile": fs.saveFile(); break;
-      case "saveAs": fs.saveAsFile(); break;
-      case "closeWindow": getCurrentWindow().close(); break;
-      case "undo": document.execCommand("undo"); break;
-      case "redo": document.execCommand("redo"); break;
-      case "cut": document.execCommand("cut"); break;
-      case "copy": document.execCommand("copy"); break;
-      case "paste": document.execCommand("paste"); break;
-      case "selectAll": document.execCommand("selectAll"); break;
-      case "find": setShowFind(true); setShowReplace(false); break;
-      case "replace": setShowFind(true); setShowReplace(true); break;
-      case "viewEdit": updateSettings({ viewMode: "edit" }); break;
-      case "viewSplit": updateSettings({ viewMode: "split" }); break;
-      case "viewPreview": updateSettings({ viewMode: "preview" }); break;
-      case "toggleSidebar": updateSettings({ sidebarVisible: !settings.sidebarVisible }); break;
-      case "zoomIn": zoomIn(); break;
-      case "zoomOut": zoomOut(); break;
-      case "zoomReset": zoomReset(); break;
+      case "newFile":
+        fs.newFile();
+        break;
+      case "openFile":
+        await fs.openFile();
+        break;
+      case "saveFile":
+        await fs.saveFile();
+        break;
+      case "saveAs":
+        await fs.saveAsFile();
+        break;
+      case "closeWindow":
+        await getCurrentWindow().close();
+        break;
+      case "undo":
+        editorRef.current?.undo();
+        break;
+      case "redo":
+        editorRef.current?.redo();
+        break;
+      case "cut": {
+        const ok = await editorRef.current?.cut();
+        if (!ok) {
+          alert("请先选中要剪切的内容，并确认应用具备剪贴板权限。");
+        }
+        break;
+      }
+      case "copy": {
+        const ok = await editorRef.current?.copy();
+        if (!ok) {
+          alert("请先选中要复制的内容，并确认应用具备剪贴板权限。");
+        }
+        break;
+      }
+      case "paste": {
+        const ok = await editorRef.current?.paste();
+        if (!ok) {
+          alert("无法读取剪贴板内容，请确认应用具备剪贴板权限。");
+        }
+        break;
+      }
+      case "selectAll":
+        editorRef.current?.selectAll();
+        break;
+      case "find":
+        openFindBar(false);
+        break;
+      case "replace":
+        openFindBar(true);
+        break;
+      case "viewEdit":
+        updateSettings({ viewMode: "edit" });
+        break;
+      case "viewSplit":
+        updateSettings({ viewMode: "split" });
+        break;
+      case "viewPreview":
+        updateSettings({ viewMode: "preview" });
+        break;
+      case "toggleSidebar":
+        updateSettings({ sidebarVisible: !settings.sidebarVisible });
+        break;
+      case "zoomIn":
+        zoomIn();
+        break;
+      case "zoomOut":
+        zoomOut();
+        break;
+      case "zoomReset":
+        zoomReset();
+        break;
       case "about":
         alert("MDPad v0.1.0\n一个轻量 Markdown 记事本。\n\nA lightweight Markdown notepad.");
         break;
@@ -135,9 +249,10 @@ export default function App() {
           "Ctrl+0  重置字体"
         );
         break;
-      default: break;
+      default:
+        break;
     }
-  }, [fs, settings.sidebarVisible, updateSettings, zoomIn, zoomOut, zoomReset]);
+  }, [fs, openFindBar, settings.sidebarVisible, updateSettings, zoomIn, zoomOut, zoomReset]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -147,8 +262,8 @@ export default function App() {
       else if (ctrl && e.key === "o") { e.preventDefault(); fs.openFile(); }
       else if (ctrl && e.shiftKey && e.key === "S") { e.preventDefault(); fs.saveAsFile(); }
       else if (ctrl && e.key === "s") { e.preventDefault(); fs.saveFile(); }
-      else if (ctrl && e.key === "f") { e.preventDefault(); setShowFind(true); setShowReplace(false); }
-      else if (ctrl && e.key === "h") { e.preventDefault(); setShowFind(true); setShowReplace(true); }
+      else if (ctrl && e.key === "f") { e.preventDefault(); openFindBar(false); }
+      else if (ctrl && e.key === "h") { e.preventDefault(); openFindBar(true); }
       else if (ctrl && e.key === "1") { e.preventDefault(); updateSettings({ viewMode: "edit" }); }
       else if (ctrl && e.key === "2") { e.preventDefault(); updateSettings({ viewMode: "split" }); }
       else if (ctrl && e.key === "3") { e.preventDefault(); updateSettings({ viewMode: "preview" }); }
@@ -159,7 +274,7 @@ export default function App() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [fs, settings.sidebarVisible, updateSettings, zoomIn, zoomOut, zoomReset]);
+  }, [fs, openFindBar, settings.sidebarVisible, updateSettings, zoomIn, zoomOut, zoomReset]);
 
   // Close confirmation
   useEffect(() => {
@@ -191,17 +306,19 @@ export default function App() {
         onSave={fs.saveFile}
         onSaveAs={fs.saveAsFile}
         onNew={fs.newFile}
-        onFind={() => { setShowFind(true); setShowReplace(false); }}
-        onReplace={() => { setShowFind(true); setShowReplace(true); }}
+        onFind={() => openFindBar(false)}
+        onReplace={() => openFindBar(true)}
         onThemeChange={(theme) => updateSettings({ theme })}
         onViewModeChange={(mode) => updateSettings({ viewMode: mode })}
       />
       <FindReplaceBar
         visible={showFind}
+        replaceMode={showReplace}
+        statusMessage={findStatus}
         onFind={handleFind}
         onReplace={handleReplace}
         onReplaceAll={handleReplaceAll}
-        onClose={() => { setShowFind(false); setShowReplace(false); }}
+        onClose={closeFindBar}
       />
       <div className="main">
         <Sidebar
@@ -220,9 +337,11 @@ export default function App() {
             </div>
             <div className="editor-container" style={{ fontSize: settings.editorFontSize + "px" }}>
               <EditorPane
+                ref={editorRef}
                 content={fs.content}
                 onChange={fs.updateContent}
                 fontSize={settings.editorFontSize}
+                onSelectionChange={handleSelectionChange}
               />
             </div>
           </div>

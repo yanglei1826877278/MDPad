@@ -40,7 +40,7 @@ export function useFileSystem({ onContentChange, updateSettings, settings }) {
             return a.name.localeCompare(b.name);
           });
         setDirFiles(files);
-      } catch (_) {
+      } catch {
         setDirFiles([]);
       }
     },
