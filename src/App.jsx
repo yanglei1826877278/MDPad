@@ -56,6 +56,22 @@ export default function App() {
     setCursorColumn(column);
   }, []);
 
+  const handleSaveRequest = useCallback(async () => {
+    try {
+      await fs.saveFile();
+    } catch {
+      alert("保存失败，请检查文件路径、写入权限，或确认 Tauri 文件权限配置是否正确。");
+    }
+  }, [fs]);
+
+  const handleSaveAsRequest = useCallback(async () => {
+    try {
+      await fs.saveAsFile();
+    } catch {
+      alert("另存为失败，请检查目标路径是否有效并确认应用具备写入权限。");
+    }
+  }, [fs]);
+
   const handleFileClick = useCallback(
     async (path) => {
       try {
@@ -170,10 +186,10 @@ export default function App() {
         await fs.openFile();
         break;
       case "saveFile":
-        await fs.saveFile();
+        await handleSaveRequest();
         break;
       case "saveAs":
-        await fs.saveAsFile();
+        await handleSaveAsRequest();
         break;
       case "closeWindow":
         await getCurrentWindow().close();
@@ -250,7 +266,17 @@ export default function App() {
       default:
         break;
     }
-  }, [fs, openFindBar, settings.sidebarVisible, updateSettings, zoomIn, zoomOut, zoomReset]);
+  }, [
+    fs,
+    handleSaveAsRequest,
+    handleSaveRequest,
+    openFindBar,
+    settings.sidebarVisible,
+    updateSettings,
+    zoomIn,
+    zoomOut,
+    zoomReset,
+  ]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -258,8 +284,8 @@ export default function App() {
       const ctrl = e.ctrlKey || e.metaKey;
       if (ctrl && e.key === "n") { e.preventDefault(); fs.newFile(); }
       else if (ctrl && e.key === "o") { e.preventDefault(); fs.openFile(); }
-      else if (ctrl && e.shiftKey && e.key === "S") { e.preventDefault(); fs.saveAsFile(); }
-      else if (ctrl && e.key === "s") { e.preventDefault(); fs.saveFile(); }
+      else if (ctrl && e.shiftKey && e.key === "S") { e.preventDefault(); void handleSaveAsRequest(); }
+      else if (ctrl && e.key === "s") { e.preventDefault(); void handleSaveRequest(); }
       else if (ctrl && e.key === "f") { e.preventDefault(); openFindBar(false); }
       else if (ctrl && e.key === "h") { e.preventDefault(); openFindBar(true); }
       else if (ctrl && e.key === "1") { e.preventDefault(); updateSettings({ viewMode: "edit" }); }
@@ -272,7 +298,17 @@ export default function App() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [fs, openFindBar, settings.sidebarVisible, updateSettings, zoomIn, zoomOut, zoomReset]);
+  }, [
+    fs,
+    handleSaveAsRequest,
+    handleSaveRequest,
+    openFindBar,
+    settings.sidebarVisible,
+    updateSettings,
+    zoomIn,
+    zoomOut,
+    zoomReset,
+  ]);
 
   // Close confirmation
   useEffect(() => {
@@ -305,8 +341,8 @@ export default function App() {
         theme={settings.theme}
         viewMode={viewMode}
         onOpen={fs.openFile}
-        onSave={fs.saveFile}
-        onSaveAs={fs.saveAsFile}
+        onSave={handleSaveRequest}
+        onSaveAs={handleSaveAsRequest}
         onNew={fs.newFile}
         onFind={() => openFindBar(false)}
         onReplace={() => openFindBar(true)}

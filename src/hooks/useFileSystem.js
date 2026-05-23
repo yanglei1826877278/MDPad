@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { readDir, readFile, writeFile } from "@tauri-apps/plugin-fs";
+import { readDir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { isSupportedFile, getFileName, getParentDir } from "../utils/fileTypes";
 import { addRecentFile } from "../utils/recentFiles";
 
@@ -125,8 +125,7 @@ export function useFileSystem({ updateSettings, settings }) {
         return;
       }
 
-      const data = await readFile(path);
-      const text = new TextDecoder().decode(data);
+      const text = await readTextFile(path);
       const fileSession = createFileSession(path, text);
 
       setWorkspace((prev) => ({
@@ -161,8 +160,7 @@ export function useFileSystem({ updateSettings, settings }) {
       );
       if (!currentSession) return false;
 
-      const data = new TextEncoder().encode(currentSession.content);
-      await writeFile(targetPath, data);
+      await writeTextFile(targetPath, currentSession.content);
 
       const updatedSession = {
         ...currentSession,
