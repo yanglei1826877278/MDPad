@@ -5,10 +5,13 @@ export default function StatusBar({
   cursorColumn,
   isDirty,
   lineEnding,
+  missingOnDisk,
 }) {
   return (
     <div className="statusbar">
-      <span>就绪</span>
+      <span className={missingOnDisk ? "status-warning" : ""}>
+        {missingOnDisk ? "源文件已被外部删除" : "就绪"}
+      </span>
       <span>
         第 {cursorLine} 行，第 {cursorColumn} 列
       </span>

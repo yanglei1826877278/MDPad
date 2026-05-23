@@ -12,6 +12,10 @@
   margin-right: 18px;
 }
 
+.status-warning {
+  color: #ffb86c;
+}
+
 .status-right {
   margin-left: auto;
   display: flex;

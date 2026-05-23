@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { readDir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
+import { exists, readDir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { isSupportedFile, getFileName, getParentDir } from "../utils/fileTypes";
 import { addRecentFile } from "../utils/recentFiles";
 
@@ -27,6 +27,7 @@ function createFileSession(path, content) {
     fileName: getFileName(path),
     content,
     isDirty: false,
+    missingOnDisk: false,
   };
 }
 
@@ -49,6 +50,7 @@ function mergeSavedSession(sessions, updatedSession) {
 
 export function useFileSystem({ updateSettings, settings }) {
   const [dirFiles, setDirFiles] = useState([]);
+  const [refreshToken, setRefreshToken] = useState(0);
   const [workspace, setWorkspace] = useState(() => {
     const initialDraft = createDraftSession(1);
     return {
@@ -106,7 +108,33 @@ export function useFileSystem({ updateSettings, settings }) {
     return () => {
       cancelled = true;
     };
-  }, [activeSession?.filePath]);
+  }, [activeSession?.filePath, refreshToken]);
+
+  const refreshFileState = useCallback(async () => {
+    const sessions = workspaceRef.current.sessions;
+
+    const results = await Promise.all(
+      sessions.map(async (session) => {
+        if (!session.filePath) return session;
+
+        const stillExists = await exists(session.filePath);
+        if (session.missingOnDisk === !stillExists) {
+          return session;
+        }
+
+        return {
+          ...session,
+          missingOnDisk: !stillExists,
+        };
+      })
+    );
+
+    setWorkspace((prev) => ({
+      ...prev,
+      sessions: results,
+    }));
+    setRefreshToken((value) => value + 1);
+  }, []);
 
   const loadFileContent = useCallback(
     async (path) => {
@@ -168,6 +196,7 @@ export function useFileSystem({ updateSettings, settings }) {
         filePath: targetPath,
         fileName: getFileName(targetPath),
         isDirty: false,
+        missingOnDisk: false,
       };
 
       setWorkspace((prev) => ({
@@ -189,12 +218,12 @@ export function useFileSystem({ updateSettings, settings }) {
     );
     if (!currentSession) return false;
 
-    if (currentSession.filePath) {
+    if (currentSession.filePath && !currentSession.missingOnDisk) {
       return persistActiveSession(currentSession.filePath);
     }
 
     const selected = await save({
-      defaultPath: currentSession.fileName,
+      defaultPath: currentSession.filePath || currentSession.fileName,
       filters: [
         { name: "Markdown", extensions: ["md"] },
         { name: "Text", extensions: ["txt"] },
@@ -202,7 +231,9 @@ export function useFileSystem({ updateSettings, settings }) {
     });
 
     if (selected) {
-      return persistActiveSession(selected);
+      const result = await persistActiveSession(selected);
+      setRefreshToken((value) => value + 1);
+      return result;
     }
 
     return false;
@@ -215,7 +246,7 @@ export function useFileSystem({ updateSettings, settings }) {
     if (!currentSession) return false;
 
     const selected = await save({
-      defaultPath: currentSession.fileName,
+      defaultPath: currentSession.filePath || currentSession.fileName,
       filters: [
         { name: "Markdown", extensions: ["md"] },
         { name: "Text", extensions: ["txt"] },
@@ -223,7 +254,9 @@ export function useFileSystem({ updateSettings, settings }) {
     });
 
     if (selected) {
-      return persistActiveSession(selected);
+      const result = await persistActiveSession(selected);
+      setRefreshToken((value) => value + 1);
+      return result;
     }
 
     return false;
@@ -288,6 +321,7 @@ export function useFileSystem({ updateSettings, settings }) {
     dirFiles,
     sessions: workspace.sessions,
     activeSessionId: workspace.activeSessionId,
+    missingOnDisk: Boolean(activeSession?.missingOnDisk),
     dirtySessionCount,
     hasDirtySessions: dirtySessionCount > 0,
     openFile,
@@ -297,5 +331,6 @@ export function useFileSystem({ updateSettings, settings }) {
     loadFileContent,
     updateContent,
     switchSession,
+    refreshFileState,
   };
 }

@@ -51,6 +51,12 @@
   padding-left: 12px;
 }
 
+.file-item.context-active {
+  background: var(--active);
+  color: var(--text);
+  opacity: 1;
+}
+
 .file-icon {
   color: var(--accent);
   font-size: 12px;
@@ -75,4 +81,40 @@
   padding: 12px;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.sidebar-context-menu {
+  position: fixed;
+  min-width: 180px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  padding: 6px;
+  z-index: 1100;
+}
+
+.sidebar-context-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.sidebar-context-item:hover {
+  background: var(--button-hover);
+}
+
+.sidebar-context-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sidebar-context-item:disabled:hover {
+  background: transparent;
 }

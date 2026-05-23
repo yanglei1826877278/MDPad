@@ -22,11 +22,13 @@ function detectLineEnding(text) {
 export default function App() {
   const { settings, updateSettings } = useSettings();
   const editorRef = useRef(null);
+  const editorContextMenuRef = useRef(null);
   const [cursorLine, setCursorLine] = useState(1);
   const [cursorColumn, setCursorColumn] = useState(1);
   const [showFind, setShowFind] = useState(false);
   const [showReplace, setShowReplace] = useState(false);
   const [findStatus, setFindStatus] = useState("");
+  const [editorMenu, setEditorMenu] = useState(null);
 
   const fs = useFileSystem({
     updateSettings,
@@ -36,6 +38,45 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", settings.theme);
   }, [settings.theme]);
+
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    const unlistenPromise = appWindow.onFocusChanged(({ payload: focused }) => {
+      if (focused) {
+        void fs.refreshFileState();
+      }
+    });
+
+    return () => {
+      unlistenPromise.then((fn) => fn());
+    };
+  }, [fs]);
+
+  useEffect(() => {
+    if (!editorMenu) return undefined;
+
+    const handlePointer = (event) => {
+      if (
+        editorContextMenuRef.current &&
+        !editorContextMenuRef.current.contains(event.target)
+      ) {
+        setEditorMenu(null);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setEditorMenu(null);
+      }
+    };
+
+    window.addEventListener("mousedown", handlePointer);
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("mousedown", handlePointer);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [editorMenu]);
 
   const lineEnding = detectLineEnding(fs.content);
 
@@ -54,6 +95,14 @@ export default function App() {
   const handleSelectionChange = useCallback(({ line, column }) => {
     setCursorLine(line);
     setCursorColumn(column);
+  }, []);
+
+  const openEditorContextMenu = useCallback(({ x, y, hasSelection }) => {
+    setEditorMenu({ x, y, hasSelection });
+  }, []);
+
+  const closeEditorContextMenu = useCallback(() => {
+    setEditorMenu(null);
   }, []);
 
   const handleSaveRequest = useCallback(async () => {
@@ -81,6 +130,40 @@ export default function App() {
       }
     },
     [fs]
+  );
+
+  const runEditorAction = useCallback(
+    async (action) => {
+      switch (action) {
+        case "undo":
+          editorRef.current?.undo();
+          break;
+        case "redo":
+          editorRef.current?.redo();
+          break;
+        case "cut":
+          await editorRef.current?.cut();
+          break;
+        case "copy":
+          await editorRef.current?.copy();
+          break;
+        case "paste":
+          await editorRef.current?.paste();
+          break;
+        case "selectAll":
+          editorRef.current?.selectAll();
+          break;
+        case "find":
+          openFindBar(false);
+          break;
+        case "replace":
+          openFindBar(true);
+          break;
+        default:
+          break;
+      }
+    },
+    [openFindBar]
   );
 
   // Drag & drop
@@ -383,6 +466,7 @@ export default function App() {
                 onChange={fs.updateContent}
                 fontSize={settings.editorFontSize}
                 onSelectionChange={handleSelectionChange}
+                onContextMenu={openEditorContextMenu}
               />
             </div>
           </div>
@@ -403,7 +487,92 @@ export default function App() {
         cursorColumn={cursorColumn}
         isDirty={fs.isDirty}
         lineEnding={lineEnding}
+        missingOnDisk={fs.missingOnDisk}
       />
+      {editorMenu && (
+        <div
+          ref={editorContextMenuRef}
+          className="editor-context-menu"
+          style={{ left: editorMenu.x, top: editorMenu.y }}
+        >
+          <button
+            className="editor-context-item"
+            onClick={() => {
+              closeEditorContextMenu();
+              void runEditorAction("undo");
+            }}
+          >
+            撤销
+          </button>
+          <button
+            className="editor-context-item"
+            onClick={() => {
+              closeEditorContextMenu();
+              void runEditorAction("redo");
+            }}
+          >
+            重做
+          </button>
+          <div className="editor-context-sep" />
+          <button
+            className="editor-context-item"
+            disabled={!editorMenu.hasSelection}
+            onClick={() => {
+              closeEditorContextMenu();
+              void runEditorAction("cut");
+            }}
+          >
+            剪切
+          </button>
+          <button
+            className="editor-context-item"
+            disabled={!editorMenu.hasSelection}
+            onClick={() => {
+              closeEditorContextMenu();
+              void runEditorAction("copy");
+            }}
+          >
+            复制
+          </button>
+          <button
+            className="editor-context-item"
+            onClick={() => {
+              closeEditorContextMenu();
+              void runEditorAction("paste");
+            }}
+          >
+            粘贴
+          </button>
+          <button
+            className="editor-context-item"
+            onClick={() => {
+              closeEditorContextMenu();
+              void runEditorAction("selectAll");
+            }}
+          >
+            全选
+          </button>
+          <div className="editor-context-sep" />
+          <button
+            className="editor-context-item"
+            onClick={() => {
+              closeEditorContextMenu();
+              void runEditorAction("find");
+            }}
+          >
+            查找
+          </button>
+          <button
+            className="editor-context-item"
+            onClick={() => {
+              closeEditorContextMenu();
+              void runEditorAction("replace");
+            }}
+          >
+            替换
+          </button>
+        </div>
+      )}
     </div>
   );
 }

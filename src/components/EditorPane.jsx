@@ -13,19 +13,21 @@ import {
 } from "@codemirror/search";
 
 const EditorPane = forwardRef(function EditorPane(
-  { content, onChange, fontSize, onSelectionChange },
+  { content, onChange, fontSize, onSelectionChange, onContextMenu },
   ref
 ) {
   const containerRef = useRef(null);
   const viewRef = useRef(null);
   const onChangeRef = useRef(onChange);
   const onSelectionChangeRef = useRef(onSelectionChange);
+  const onContextMenuRef = useRef(onContextMenu);
   const syncingExternalContentRef = useRef(false);
 
   useEffect(() => {
     onChangeRef.current = onChange;
     onSelectionChangeRef.current = onSelectionChange;
-  }, [onChange, onSelectionChange]);
+    onContextMenuRef.current = onContextMenu;
+  }, [onChange, onContextMenu, onSelectionChange]);
 
   const emitSelectionInfo = (view) => {
     if (!view || !onSelectionChangeRef.current) return;
@@ -86,6 +88,30 @@ const EditorPane = forwardRef(function EditorPane(
         EditorView.theme({
           "&": { height: "100%" },
           ".cm-scroller": { overflow: "auto" },
+        }),
+        EditorView.domEventHandlers({
+          mousedown(event, view) {
+            if (event.button !== 2) return false;
+
+            onContextMenuRef.current?.({
+              x: event.clientX,
+              y: event.clientY,
+              hasSelection: !view.state.selection.main.empty,
+            });
+            event.preventDefault();
+            event.stopPropagation();
+            return true;
+          },
+          contextmenu(event, view) {
+            onContextMenuRef.current?.({
+              x: event.clientX,
+              y: event.clientY,
+              hasSelection: !view.state.selection.main.empty,
+            });
+            event.preventDefault();
+            event.stopPropagation();
+            return true;
+          },
         }),
       ],
     });
@@ -266,6 +292,11 @@ const EditorPane = forwardRef(function EditorPane(
         userEvent: "input.paste",
       });
       return true;
+    },
+    hasSelection() {
+      const view = viewRef.current;
+      if (!view) return false;
+      return !view.state.selection.main.empty;
     },
   }));
 

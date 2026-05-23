@@ -234,6 +234,48 @@
   caret-color: var(--accent);
 }
 
+.editor-context-menu {
+  position: fixed;
+  min-width: 170px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  padding: 6px;
+  z-index: 1200;
+}
+
+.editor-context-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.editor-context-item:hover {
+  background: var(--button-hover);
+}
+
+.editor-context-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.editor-context-item:disabled:hover {
+  background: transparent;
+}
+
+.editor-context-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 4px;
+}
+
 @media (max-width: 1050px) {
   .path {
     display: none;
