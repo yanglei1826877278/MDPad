@@ -15,7 +15,6 @@
     "core:window:allow-unmaximize",
     "core:window:allow-is-maximized",
     "core:window:allow-set-focus",
-    "core:window:allow-on-close-requested",
     "dialog:default",
     "dialog:allow-open",
     "dialog:allow-save",
