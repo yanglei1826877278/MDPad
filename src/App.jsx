@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import TitleBar from "./components/TitleBar";
 import Toolbar from "./components/Toolbar";
 import Sidebar from "./components/Sidebar";
@@ -104,6 +105,26 @@ export default function App() {
   const closeEditorContextMenu = useCallback(() => {
     setEditorMenu(null);
   }, []);
+
+  const handleCloseWindow = useCallback(async () => {
+    if (fs.hasDirtySessions) {
+      const sessionText =
+        fs.dirtySessionCount > 1
+          ? `当前有 ${fs.dirtySessionCount} 个会话尚未保存`
+          : "当前会话尚未保存";
+      const confirmed = await confirm(`${sessionText}，关闭后内容将丢失。`, {
+        title: "关闭窗口",
+        kind: "warning",
+      });
+
+      if (!confirmed) {
+        return false;
+      }
+    }
+
+    await getCurrentWindow().destroy();
+    return true;
+  }, [fs.dirtySessionCount, fs.hasDirtySessions]);
 
   const handleSaveRequest = useCallback(async () => {
     try {
@@ -275,7 +296,7 @@ export default function App() {
         await handleSaveAsRequest();
         break;
       case "closeWindow":
-        await getCurrentWindow().close();
+        await handleCloseWindow();
         break;
       case "undo":
         editorRef.current?.undo();
@@ -351,6 +372,7 @@ export default function App() {
     }
   }, [
     fs,
+    handleCloseWindow,
     handleSaveAsRequest,
     handleSaveRequest,
     openFindBar,
@@ -396,19 +418,11 @@ export default function App() {
   // Close confirmation
   useEffect(() => {
     const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
-      if (fs.hasDirtySessions) {
-        const sessionText =
-          fs.dirtySessionCount > 1
-            ? `当前有 ${fs.dirtySessionCount} 个会话尚未保存`
-            : "当前会话尚未保存";
-        const confirmed = window.confirm(
-          `${sessionText}，关闭后内容将丢失。\n\n确定 = 不保存直接关闭\n取消 = 取消关闭`
-        );
-        if (!confirmed) event.preventDefault();
-      }
+      event.preventDefault();
+      await handleCloseWindow();
     });
     return () => { unlisten.then((fn) => fn()); };
-  }, [fs.dirtySessionCount, fs.hasDirtySessions]);
+  }, [handleCloseWindow]);
 
   const { viewMode } = settings;
 
@@ -418,6 +432,7 @@ export default function App() {
         fileName={fs.fileName}
         isDirty={fs.isDirty}
         onMenuAction={handleMenuAction}
+        onCloseWindow={() => { void handleCloseWindow(); }}
       />
       <Toolbar
         filePath={fs.filePath}

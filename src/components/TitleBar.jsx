@@ -45,7 +45,7 @@ const HELP_MENU = [
   { label: "快捷键说明", action: "shortcuts" },
 ];
 
-export default function TitleBar({ fileName, isDirty, onMenuAction }) {
+export default function TitleBar({ fileName, isDirty, onMenuAction, onCloseWindow }) {
   const [openMenu, setOpenMenu] = useState(null);
   const title = `${fileName}${isDirty ? " *" : ""} - MDPad`;
 
@@ -77,9 +77,9 @@ export default function TitleBar({ fileName, isDirty, onMenuAction }) {
         <DropdownMenu label="帮助" items={HELP_MENU} onAction={onMenuAction} {...createMenuHandlers("help")} />
       </div>
       <div className="window-actions">
-        <button className="win-btn" onMouseDown={(e) => e.stopPropagation()} onClick={() => appWindow.minimize()}>─</button>
-        <button className="win-btn" onMouseDown={(e) => e.stopPropagation()} onClick={() => appWindow.toggleMaximize()}>□</button>
-        <button className="win-btn close" onMouseDown={(e) => e.stopPropagation()} onClick={() => appWindow.close()}>×</button>
+        <button type="button" className="win-btn" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={() => appWindow.minimize()}>─</button>
+        <button type="button" className="win-btn" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={() => appWindow.toggleMaximize()}>□</button>
+        <button type="button" className="win-btn close" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={onCloseWindow}>×</button>
       </div>
     </div>
   );

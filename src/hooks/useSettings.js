@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { readFile, writeFile, exists, mkdir } from "@tauri-apps/plugin-fs";
+import { readTextFile, writeTextFile, exists, mkdir } from "@tauri-apps/plugin-fs";
 import { appDataDir } from "@tauri-apps/api/path";
 
 const DEFAULT_SETTINGS = {
@@ -26,8 +26,7 @@ export function useSettings() {
         const path = await getSettingsPath();
         const existsFlag = await exists(path);
         if (existsFlag) {
-          const data = await readFile(path);
-          const text = new TextDecoder().decode(data);
+          const text = await readTextFile(path);
           const parsed = JSON.parse(text);
           setSettings((prev) => ({ ...prev, ...parsed }));
         }
@@ -43,10 +42,10 @@ export function useSettings() {
         const dir = await appDataDir();
         await mkdir(dir, { recursive: true });
         const path = dir + "settings.json";
-        const data = new TextEncoder().encode(
+        await writeTextFile(
+          path,
           JSON.stringify(newSettings || settings, null, 2)
         );
-        await writeFile(path, data);
       } catch {
         return false;
       }
