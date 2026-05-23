@@ -22,18 +22,6 @@
   align-items: center;
 }
 
-.menu span {
-  padding: 5px 10px;
-  border-radius: 3px;
-  color: var(--text);
-  opacity: 0.86;
-  cursor: default;
-}
-
-.menu span:hover {
-  background: var(--button-hover);
-}
-
 .window-actions {
   margin-left: auto;
   display: flex;

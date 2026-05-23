@@ -22,6 +22,8 @@ export default function Toolbar({
   onSave,
   onSaveAs,
   onNew,
+  onFind,
+  onReplace,
   onThemeChange,
   onViewModeChange,
 }) {
@@ -31,6 +33,11 @@ export default function Toolbar({
       <button className="tool-btn primary" onClick={onOpen}>打开</button>
       <button className="tool-btn" onClick={onSave}>保存</button>
       <button className="tool-btn" onClick={onSaveAs}>另存为</button>
+
+      <div className="separator" />
+
+      <button className="tool-btn" onClick={onFind}>查找</button>
+      <button className="tool-btn" onClick={onReplace}>替换</button>
 
       <div className="separator" />
 
