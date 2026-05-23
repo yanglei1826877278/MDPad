@@ -3,6 +3,36 @@ import { invoke } from "@tauri-apps/api/core";
 import { getFileType } from "../utils/fileTypes";
 import "./Sidebar.css";
 
+function SidebarSection({ id, title, count, collapsed, onToggle, children }) {
+  return (
+    <div className="side-section">
+      <button
+        type="button"
+        className="side-title"
+        aria-expanded={!collapsed}
+        aria-controls={`${id}-section`}
+        onClick={() => onToggle(id)}
+      >
+        <svg
+          className="section-chevron"
+          viewBox="0 0 12 12"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M4.5 2.75 7.75 6 4.5 9.25" />
+        </svg>
+        <span>{title}</span>
+        <span className="section-count">{count}</span>
+      </button>
+      {!collapsed && (
+        <div id={`${id}-section`} className="file-list">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Sidebar({
   sessions,
   activeSessionId,
@@ -15,6 +45,11 @@ export default function Sidebar({
   visible,
 }) {
   const [contextMenu, setContextMenu] = useState(null);
+  const [collapsedSections, setCollapsedSections] = useState({
+    sessions: false,
+    directory: false,
+    recent: false,
+  });
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -116,11 +151,22 @@ export default function Sidebar({
     void onSessionClose(session);
   };
 
+  const toggleSection = (section) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
   return (
     <aside className="sidebar">
-      <div className="side-section">
-        <div className="side-title">打开会话</div>
-        <div className="file-list">
+      <SidebarSection
+        id="sessions"
+        title="打开会话"
+        count={sessions.length}
+        collapsed={collapsedSections.sessions}
+        onToggle={toggleSection}
+      >
           {sessions.map((session) => (
             <div
               key={session.id}
@@ -170,12 +216,15 @@ export default function Sidebar({
               </button>
             </div>
           ))}
-        </div>
-      </div>
+      </SidebarSection>
 
-      <div className="side-section">
-        <div className="side-title">当前目录</div>
-        <div className="file-list">
+      <SidebarSection
+        id="directory"
+        title="当前目录"
+        count={dirFiles.length}
+        collapsed={collapsedSections.directory}
+        onToggle={toggleSection}
+      >
           {dirFiles.length === 0 && (
             <div className="hint">打开文件后显示目录列表</div>
           )}
@@ -195,12 +244,15 @@ export default function Sidebar({
               <span className="file-name">{f.name}</span>
             </div>
           ))}
-        </div>
-      </div>
+      </SidebarSection>
 
-      <div className="side-section">
-        <div className="side-title">最近打开</div>
-        <div className="file-list">
+      <SidebarSection
+        id="recent"
+        title="最近打开"
+        count={recentFiles.length}
+        collapsed={collapsedSections.recent}
+        onToggle={toggleSection}
+      >
           {recentFiles.length === 0 && (
             <div className="hint">暂无最近打开的文件</div>
           )}
@@ -220,8 +272,7 @@ export default function Sidebar({
               <span className="file-name">{f.name}</span>
             </div>
           ))}
-        </div>
-      </div>
+      </SidebarSection>
 
       <div className="hint">
         拖入 .md 或 .txt 文件即可打开。
