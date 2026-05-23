@@ -1,31 +1,42 @@
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import "./DropdownMenu.css";
 
-export default function DropdownMenu({ label, items, onAction }) {
-  const [open, setOpen] = useState(false);
+export default function DropdownMenu({
+  label,
+  items,
+  onAction,
+  isOpen,
+  onToggle,
+  onOpen,
+  onClose,
+}) {
   const ref = useRef(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!isOpen) return;
     const handler = (e) => {
       if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
+        onClose();
       }
     };
     window.addEventListener("mousedown", handler);
     return () => window.removeEventListener("mousedown", handler);
-  }, [open]);
+  }, [isOpen, onClose]);
 
   return (
     <div className="dropdown" ref={ref}>
       <span
         className="dropdown-trigger"
         onMouseDown={(e) => e.stopPropagation()}
-        onClick={() => setOpen(!open)}
+        onClick={() => onToggle()}
+        onMouseEnter={() => {
+          if (isOpen) return;
+          onOpen();
+        }}
       >
         {label}
       </span>
-      {open && (
+      {isOpen && (
         <div className="dropdown-list">
           {items.map((item, i) =>
             item === "---" ? (
@@ -35,7 +46,7 @@ export default function DropdownMenu({ label, items, onAction }) {
                 key={i}
                 className="dropdown-item"
                 onClick={() => {
-                  setOpen(false);
+                  onClose();
                   onAction(item.action);
                 }}
               >

@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import DropdownMenu from "./DropdownMenu";
 import "./TitleBar.css";
@@ -45,6 +46,7 @@ const HELP_MENU = [
 ];
 
 export default function TitleBar({ fileName, isDirty, onMenuAction }) {
+  const [openMenu, setOpenMenu] = useState(null);
   const title = `${fileName}${isDirty ? " *" : ""} - MDPad`;
 
   const handleMouseDown = async (e) => {
@@ -54,14 +56,28 @@ export default function TitleBar({ fileName, isDirty, onMenuAction }) {
     } catch (_) {}
   };
 
+  const createMenuHandlers = useCallback(
+    (menuKey) => ({
+      isOpen: openMenu === menuKey,
+      onToggle: () => setOpenMenu((current) => (current === menuKey ? null : menuKey)),
+      onOpen: () => {
+        setOpenMenu((current) => (current === null ? current : menuKey));
+      },
+      onClose: () => {
+        setOpenMenu((current) => (current === menuKey ? null : current));
+      },
+    }),
+    [openMenu]
+  );
+
   return (
     <div className="titlebar" onMouseDown={handleMouseDown}>
       <div className="app-title">{title}</div>
       <div className="menu">
-        <DropdownMenu label="文件" items={FILE_MENU} onAction={onMenuAction} />
-        <DropdownMenu label="编辑" items={EDIT_MENU} onAction={onMenuAction} />
-        <DropdownMenu label="查看" items={VIEW_MENU} onAction={onMenuAction} />
-        <DropdownMenu label="帮助" items={HELP_MENU} onAction={onMenuAction} />
+        <DropdownMenu label="文件" items={FILE_MENU} onAction={onMenuAction} {...createMenuHandlers("file")} />
+        <DropdownMenu label="编辑" items={EDIT_MENU} onAction={onMenuAction} {...createMenuHandlers("edit")} />
+        <DropdownMenu label="查看" items={VIEW_MENU} onAction={onMenuAction} {...createMenuHandlers("view")} />
+        <DropdownMenu label="帮助" items={HELP_MENU} onAction={onMenuAction} {...createMenuHandlers("help")} />
       </div>
       <div className="window-actions">
         <button className="win-btn" onMouseDown={(e) => e.stopPropagation()} onClick={() => appWindow.minimize()}>─</button>
