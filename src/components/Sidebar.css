@@ -1,0 +1,70 @@
+.sidebar {
+  width: 220px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.side-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.side-title {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  color: var(--text);
+  opacity: 0.82;
+  font-size: 12px;
+  background: var(--panel-2);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.file-list {
+  padding: 6px 0;
+}
+
+.file-item {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 14px;
+  gap: 7px;
+  color: var(--text);
+  opacity: 0.88;
+  cursor: default;
+}
+
+.file-item:hover {
+  background: var(--button-hover);
+}
+
+.file-item.active {
+  background: var(--active);
+  color: var(--text);
+  opacity: 1;
+  border-left: 2px solid var(--accent);
+  padding-left: 12px;
+}
+
+.file-icon {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.file-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.hint {
+  padding: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}

@@ -1,0 +1,19 @@
+.statusbar {
+  height: 24px;
+  background: var(--status);
+  color: var(--status-text);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.statusbar span {
+  margin-right: 18px;
+}
+
+.status-right {
+  margin-left: auto;
+  display: flex;
+  gap: 18px;
+}

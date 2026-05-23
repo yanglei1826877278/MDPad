@@ -1,0 +1,63 @@
+.titlebar {
+  height: 34px;
+  background: var(--top);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  user-select: none;
+}
+
+.app-title {
+  font-size: 13px;
+  color: var(--text);
+  margin-right: 24px;
+  font-weight: 600;
+}
+
+.menu {
+  display: flex;
+  gap: 2px;
+  height: 100%;
+  align-items: center;
+}
+
+.menu span {
+  padding: 5px 10px;
+  border-radius: 3px;
+  color: var(--text);
+  opacity: 0.86;
+  cursor: default;
+}
+
+.menu span:hover {
+  background: var(--button-hover);
+}
+
+.window-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0;
+}
+
+.win-btn {
+  width: 46px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.win-btn:hover {
+  background: var(--button-hover);
+}
+
+.win-btn.close:hover {
+  background: #e81123;
+  color: #fff;
+}
