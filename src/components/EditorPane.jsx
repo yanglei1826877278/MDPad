@@ -20,6 +20,7 @@ const EditorPane = forwardRef(function EditorPane(
   const viewRef = useRef(null);
   const onChangeRef = useRef(onChange);
   const onSelectionChangeRef = useRef(onSelectionChange);
+  const syncingExternalContentRef = useRef(false);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -75,7 +76,7 @@ const EditorPane = forwardRef(function EditorPane(
         keymap.of([...defaultKeymap, ...historyKeymap]),
         markdown(),
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
+          if (update.docChanged && !syncingExternalContentRef.current) {
             onChangeRef.current(update.state.doc.toString());
           }
           if (update.docChanged || update.selectionSet || update.focusChanged) {
@@ -105,9 +106,11 @@ const EditorPane = forwardRef(function EditorPane(
     if (!view) return;
     const current = view.state.doc.toString();
     if (current !== content) {
+      syncingExternalContentRef.current = true;
       view.dispatch({
         changes: { from: 0, to: current.length, insert: content },
       });
+      syncingExternalContentRef.current = false;
     }
   }, [content]);
 

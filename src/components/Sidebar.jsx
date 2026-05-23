@@ -2,16 +2,46 @@ import "./Sidebar.css";
 import { getFileType } from "../utils/fileTypes";
 
 export default function Sidebar({
+  sessions,
+  activeSessionId,
   dirFiles,
   recentFiles,
   currentFilePath,
   onFileClick,
+  onSessionClick,
   visible,
 }) {
   if (!visible) return null;
 
   return (
     <aside className="sidebar">
+      <div className="side-section">
+        <div className="side-title">打开会话</div>
+        <div className="file-list">
+          {sessions.map((session) => (
+            <div
+              key={session.id}
+              className={
+                "file-item" + (session.id === activeSessionId ? " active" : "")
+              }
+              onClick={() => onSessionClick(session.id)}
+              title={session.filePath || session.fileName}
+            >
+              <span className="file-icon">
+                {session.kind === "draft" ? "TMP" : getFileType(session.fileName)}
+              </span>
+              <span className="file-name">
+                {session.fileName}
+                {session.isDirty ? " *" : ""}
+              </span>
+              {session.kind === "draft" && (
+                <span className="file-badge">临时</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="side-section">
         <div className="side-title">当前目录</div>
         <div className="file-list">

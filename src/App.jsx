@@ -22,7 +22,6 @@ function detectLineEnding(text) {
 export default function App() {
   const { settings, updateSettings } = useSettings();
   const editorRef = useRef(null);
-  const [previewContent, setPreviewContent] = useState("");
   const [cursorLine, setCursorLine] = useState(1);
   const [cursorColumn, setCursorColumn] = useState(1);
   const [showFind, setShowFind] = useState(false);
@@ -30,7 +29,6 @@ export default function App() {
   const [findStatus, setFindStatus] = useState("");
 
   const fs = useFileSystem({
-    onContentChange: setPreviewContent,
     updateSettings,
     settings,
   });
@@ -279,15 +277,19 @@ export default function App() {
   // Close confirmation
   useEffect(() => {
     const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
-      if (fs.isDirty) {
+      if (fs.hasDirtySessions) {
+        const sessionText =
+          fs.dirtySessionCount > 1
+            ? `当前有 ${fs.dirtySessionCount} 个会话尚未保存`
+            : "当前会话尚未保存";
         const confirmed = window.confirm(
-          "当前文件尚未保存，是否保存？\n\n确定 = 不保存直接关闭\n取消 = 取消关闭"
+          `${sessionText}，关闭后内容将丢失。\n\n确定 = 不保存直接关闭\n取消 = 取消关闭`
         );
         if (!confirmed) event.preventDefault();
       }
     });
     return () => { unlisten.then((fn) => fn()); };
-  }, [fs.isDirty]);
+  }, [fs.dirtySessionCount, fs.hasDirtySessions]);
 
   const { viewMode } = settings;
 
@@ -322,10 +324,13 @@ export default function App() {
       />
       <div className="main">
         <Sidebar
+          sessions={fs.sessions}
+          activeSessionId={fs.activeSessionId}
           dirFiles={fs.dirFiles}
           recentFiles={settings.recentFiles}
           currentFilePath={fs.filePath}
           onFileClick={handleFileClick}
+          onSessionClick={fs.switchSession}
           visible={settings.sidebarVisible}
         />
         <section className="workspace">
@@ -352,7 +357,7 @@ export default function App() {
               <span className="info">GitHub 风格</span>
             </div>
             <div className="preview" style={{ fontSize: settings.previewFontSize + "px" }}>
-              <PreviewPane content={previewContent} fontSize={settings.previewFontSize} />
+              <PreviewPane content={fs.content} fontSize={settings.previewFontSize} />
             </div>
           </div>
         </section>
