@@ -23,6 +23,8 @@ export function useSettings() {
   const saveQueueRef = useRef(Promise.resolve(true));
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       try {
         const path = await getSettingsPath();
@@ -30,7 +32,26 @@ export function useSettings() {
         if (existsFlag) {
           const text = await readTextFile(path);
           const parsed = JSON.parse(text);
-          const next = { ...DEFAULT_SETTINGS, ...parsed };
+          const next = {
+            ...settingsRef.current,
+            ...parsed,
+            recentFiles: [
+              ...settingsRef.current.recentFiles,
+              ...(parsed.recentFiles ?? []),
+            ].reduce((files, file) => {
+              if (!file?.path || files.some((item) => item.path === file.path)) {
+                return files;
+              }
+
+              files.push(file);
+              return files;
+            }, []),
+          };
+
+          if (cancelled) {
+            return;
+          }
+
           settingsRef.current = next;
           setSettings(next);
         }
@@ -38,6 +59,10 @@ export function useSettings() {
         return;
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const saveSettings = useCallback((newSettings) => {

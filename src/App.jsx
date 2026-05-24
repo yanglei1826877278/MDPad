@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import TitleBar from "./components/TitleBar";
@@ -12,6 +14,8 @@ import { useSettings } from "./hooks/useSettings";
 import { useFileSystem } from "./hooks/useFileSystem";
 import { isSupportedFile } from "./utils/fileTypes";
 import "./App.css";
+
+const OPEN_DOCUMENTS_EVENT = "open-documents";
 
 function detectLineEnding(text) {
   if (text.includes("\r\n")) return "CRLF";
@@ -34,10 +38,87 @@ export default function App() {
   const fs = useFileSystem({
     updateSettings,
   });
+  const { loadFileContent } = fs;
+
+  const openExternalDocuments = useCallback(
+    async (paths) => {
+      const incomingPaths = Array.isArray(paths) ? paths : [];
+      const supportedPaths = [...new Set(incomingPaths)].filter(isSupportedFile);
+      const failures = [];
+
+      for (const path of supportedPaths) {
+        try {
+          await loadFileContent(path);
+        } catch (error) {
+          failures.push(
+            `${path}\n${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
+
+      if (failures.length > 0) {
+        alert(`部分文件读取失败，请检查文件权限：\n\n${failures.join("\n\n")}`);
+      }
+    },
+    [loadFileContent]
+  );
+
+  const drainPendingOpenDocuments = useCallback(async () => {
+    const paths = await invoke("take_pending_open_documents");
+    await openExternalDocuments(paths);
+  }, [openExternalDocuments]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", settings.theme);
   }, [settings.theme]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let draining = false;
+    let reportedDrainFailure = false;
+
+    const drain = async () => {
+      if (cancelled || draining) {
+        return;
+      }
+
+      draining = true;
+      try {
+        await drainPendingOpenDocuments();
+      } catch (error) {
+        if (!cancelled && !reportedDrainFailure) {
+          reportedDrainFailure = true;
+          alert(
+            `读取右键打开的文件失败：${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+        }
+      } finally {
+        draining = false;
+      }
+    };
+
+    void drain();
+
+    const intervalId = window.setInterval(() => {
+      void drain();
+    }, 1000);
+
+    const unlistenPromise = listen(OPEN_DOCUMENTS_EVENT, () => {
+      void drain();
+    }).catch(() => null);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      unlistenPromise.then((fn) => {
+        if (fn) {
+          fn();
+        }
+      });
+    };
+  }, [drainPendingOpenDocuments]);
 
   useEffect(() => {
     const appWindow = getCurrentWindow();
