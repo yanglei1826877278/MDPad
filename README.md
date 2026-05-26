@@ -50,6 +50,18 @@ npm run tauri build
 - **macOS**: `.dmg`
 - **Linux**: `.deb` / `.AppImage`
 
+## 主题预览
+
+<img src="./public/perview01.png" alt="预览1" width="600"/>
+
+<img src="./public/perview02.png" alt="预览2" width="600"/>
+
+<img src="./public/perview03.png" alt="预览3" width="600"/>
+
+<img src="./public/perview04.png" alt="预览4" width="600"/>
+
+<img src="./public/perview05.png" alt="预览5" width="600"/>
+
 ## 许可证
 
 MIT License
