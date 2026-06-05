@@ -594,7 +594,11 @@ export default function App() {
               <span className="info">GitHub 风格</span>
             </div>
             <div className="preview" style={{ fontSize: settings.previewFontSize + "px" }}>
-              <PreviewPane content={fs.content} fontSize={settings.previewFontSize} />
+              <PreviewPane
+                content={fs.content}
+                documentPath={fs.filePath}
+                fontSize={settings.previewFontSize}
+              />
             </div>
           </div>
         </section>

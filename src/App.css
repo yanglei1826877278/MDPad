@@ -168,7 +168,13 @@
 }
 
 .preview-content img {
-  max-width: 100%;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(100%, 760px);
+  max-height: 520px;
+  margin: 12px 0;
+  object-fit: contain;
   border-radius: 4px;
 }
 

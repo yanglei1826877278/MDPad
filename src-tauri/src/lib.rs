@@ -1,3 +1,4 @@
+use base64::prelude::*;
 use serde::Serialize;
 use std::ffi::OsString;
 use std::fs;
@@ -32,6 +33,24 @@ fn is_supported_text_file(path: &Path) -> bool {
         .and_then(|ext| ext.to_str())
         .map(|ext| matches!(ext.to_ascii_lowercase().as_str(), "md" | "markdown" | "txt"))
         .unwrap_or(false)
+}
+
+fn supported_image_mime(path: &Path) -> Option<&'static str> {
+    match path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("png") => Some("image/png"),
+        Some("jpg") | Some("jpeg") => Some("image/jpeg"),
+        Some("gif") => Some("image/gif"),
+        Some("webp") => Some("image/webp"),
+        Some("bmp") => Some("image/bmp"),
+        Some("svg") => Some("image/svg+xml"),
+        Some("ico") => Some("image/x-icon"),
+        _ => None,
+    }
 }
 
 fn extension_order(path: &Path) -> u8 {
@@ -226,6 +245,16 @@ fn read_text_document(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn read_local_image_data_url(path: String) -> Result<String, String> {
+    let target = Path::new(&path);
+    let mime = supported_image_mime(target).ok_or("暂不支持该图片类型。")?;
+    let bytes = fs::read(target).map_err(|err| err.to_string())?;
+    let encoded = BASE64_STANDARD.encode(bytes);
+
+    Ok(format!("data:{};base64,{}", mime, encoded))
+}
+
+#[tauri::command]
 fn write_text_document(path: String, content: String) -> Result<(), String> {
     let target = Path::new(&path);
 
@@ -359,6 +388,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             reveal_in_folder,
             read_text_document,
+            read_local_image_data_url,
             write_text_document,
             document_exists,
             take_pending_open_documents,
